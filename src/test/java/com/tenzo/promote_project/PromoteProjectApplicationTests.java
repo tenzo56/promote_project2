@@ -10,6 +10,10 @@ import org.springframework.context.annotation.Configuration;
 @SpringBootApplication
 class PromoteProjectApplicationTests {
 
+    public static void main(String[] args) {
+
+    }
+
     @Test
     void contextLoads() {
     }

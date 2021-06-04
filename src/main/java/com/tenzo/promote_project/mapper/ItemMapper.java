@@ -1,11 +1,9 @@
 package com.tenzo.promote_project.mapper;
 
 import com.tenzo.promote_project.domain.Item;
-import org.apache.ibatis.annotations.Delete;
-import org.apache.ibatis.annotations.Insert;
-import org.apache.ibatis.annotations.Options;
-import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.*;
 
+@Mapper
 public interface ItemMapper {
 
     /**

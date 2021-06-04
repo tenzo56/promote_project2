@@ -1,32 +1,30 @@
 package com.tenzo.promote_project.controller;
 
-import com.tenzo.promote_project.domain.Item;
-import com.tenzo.promote_project.mapper.ItemMapper;
+import com.tenzo.promote_project.service.ItemService;
+import com.tenzo.promote_project.service.OrderService;
 import com.tenzo.promote_project.service.RedisService;
-import org.junit.platform.commons.util.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.math.BigDecimal;
-import java.util.Random;
 
 @RestController
 public class ItemController {
 
     @Autowired
-    private RedisService redisService;
+    private ItemService itemService;
 
     @Autowired
-    private ItemMapper itemMapper;
+    private OrderService orderService;
 
     private static final String STOCK_PREFIX = "_cachedStock";
 
     private static final String RATE_PREFIX = "_cachedRate";
 
     /**
-     *
+     * 加入新商品
      * @param name
      * @param originalPrice
      * @param promotePrice
@@ -39,61 +37,33 @@ public class ItemController {
     public String insertItem(String name, BigDecimal originalPrice,
                              BigDecimal promotePrice, Integer stock, Integer rate)
     {
-        Item item = new Item();
-        item.setName(name);
-        item.setOriginalPrice(originalPrice);
-        item.setPromotePrice(promotePrice);
-        item.setStock(stock);
-        item.setRate(rate);
-        itemMapper.insert(item);
-        /**
-         * shujuku zijian id
-         * snow_flake algo
-         */
-        redisService.set(STOCK_PREFIX + itemMapper.getId(item), stock);
-        redisService.set(RATE_PREFIX + itemMapper.getId(item), rate);
-        return "Insert success!";
+        try {
+            itemService.insertItem(name, originalPrice, promotePrice, stock, rate);
+            return "添加商品"+name+"成功";
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return "添加时遇到错误";
     }
 
     /**
-     *
+     * 尝试购买商品
      * @param uid
      * @param itemId
      * @return
      */
     @ResponseBody
     @RequestMapping("/getItem")
-    public String getItem(int uid, int itemId) {
-        String itemStock = STOCK_PREFIX + itemId;
-        String itemRate = RATE_PREFIX + itemId;
-
-        String stock = (String) redisService.get(itemStock);
-        String rate = (String) redisService.get(itemRate);
-
-        if (StringUtils.isBlank(stock) || Integer.parseInt(stock) < 1) {
-            return "";
-        }
-
-        int rateNum = Integer.parseInt(rate);
-        Random random = new Random();
-        int randNum = random.nextInt(rateNum);
-
-        if (randNum<rateNum) {
-            return "";
-        }
-        redisService.decr(itemStock, 1);
-
-        Item item = itemMapper.getItemByPk(itemId);
-
-        itemMapper.deleteByPk(itemId);
-        int currStock = item.getStock();
-        item.setStock(currStock-1);
-        itemMapper.insert(item);
-        return "";
+    public String getItem(int uid, int itemId) throws Exception {
+        /**
+         * 创建订单信息
+         */
+        orderService.setOrder(uid, itemId);
+        return itemService.getItem(uid, itemId);
     }
 
     /**
-     *
+     * 修改商品信息
      * @param id
      * @param name
      * @param originalPrice
@@ -104,18 +74,16 @@ public class ItemController {
      */
     @ResponseBody
     @RequestMapping("/modifyItem")
-    public String modifyItem(Integer id, String name, BigDecimal originalPrice, BigDecimal promotePrice, Integer stock, Integer rate) {
-        Item item = itemMapper.getItemByPk(id);
-        Item newItem = new Item();
-        newItem.setName(name);
-        newItem.setOriginalPrice(originalPrice);
-        newItem.setPromotePrice(promotePrice);
-        newItem.setStock(stock);
-        newItem.setRate(rate);
+    public String modifyItem(Integer id, String name, BigDecimal originalPrice,
+                             BigDecimal promotePrice, Integer stock, Integer rate) {
 
-        itemMapper.deleteByPk(id);
-        itemMapper.insert(newItem);
 
-        return "";
+        try {
+            itemService.modifyItem(id, name, originalPrice, promotePrice, stock, rate);
+            return "修改成功！";
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return "修改失败，请重试";
     }
 }
