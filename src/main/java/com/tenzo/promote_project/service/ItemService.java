@@ -1,6 +1,7 @@
 package com.tenzo.promote_project.service;
 
 import com.tenzo.promote_project.domain.Item;
+import com.tenzo.promote_project.domain.Order;
 import com.tenzo.promote_project.mapper.ItemMapper;
 import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
@@ -23,9 +24,14 @@ public class ItemService {
     @Autowired
     RedisService redisService;
 
+    @Autowired
+    OrderService orderService;
+
     private static final String STOCK_PREFIX = "_cachedStock";
 
     private static final String RATE_PREFIX = "_cachedRate";
+
+    private static final String ORDER_PREFIX = "_cachedOrder";
 
     /**
      * 新建商品
@@ -48,8 +54,8 @@ public class ItemService {
          * 数据库自建id
          * TODO: snow_flake algo
          */
-        redisService.set(STOCK_PREFIX + itemMapper.getId(item), stock);
-        redisService.set(RATE_PREFIX + itemMapper.getId(item), rate);
+        redisService.set(STOCK_PREFIX + item.getId(), stock);
+        redisService.set(RATE_PREFIX + item.getId(), rate);
     }
 
     /**
@@ -68,11 +74,10 @@ public class ItemService {
         CuratorFramework curatorFramework = CuratorFrameworkFactory.builder()
                 .connectString("192.168.243.11").retryPolicy(retryPolicy).build();
         curatorFramework.start();
-        String stock = (String) redisService.get(itemStock);
         String rate = (String) redisService.get(itemRate);
 
         final InterProcessMutex mutex = new InterProcessMutex(curatorFramework, "/myMutex");
-        try {
+
             /**
              * 验证是否中奖(可以购买)
              */
@@ -83,33 +88,36 @@ public class ItemService {
                 return "请换个姿势再试一次";
             }
             // 验证是否还有库存
-            if (StringUtils.isBlank(stock) || Integer.parseInt(stock) < 1) {
+            if (redisService.isSoldOut(itemId+"")) {
                 return "来晚一步~商品已经被抢空了";
             }
-
-            // 获取锁
-            mutex.acquire();
-            /**
-             * 扣减缓存库存
-             */
-            redisService.decr(itemStock, 1);
-            Item item = itemMapper.getItemByPk(itemId);
-            // 开始访问共享资源
-            itemMapper.deleteByPk(itemId);
-            int currStock = item.getStock();
-            item.setStock(currStock-1);
-            itemMapper.insert(item);
-            return "购买成功！";
-        } catch (Exception e) {
-            e.printStackTrace();
-        } finally {
             try {
-                mutex.release();
+                // 获取锁
+                mutex.acquire();
+                /**
+                 * 扣减缓存库存
+                 */
+                redisService.decr(itemStock, 1);
+                Item item = itemMapper.getItemByPk(itemId);
+                // 开始访问共享资源
+                itemMapper.deleteByPk(itemId);
+                int currStock = item.getStock();
+                item.setStock(currStock-1);
+                itemMapper.insert(item);
+                orderService.setOrder(uid, itemId);
+                return "购买成功！";
             } catch (Exception e) {
+                // 如果出现异常， 把库存补回
+                redisService.incr(itemStock, 1);
                 e.printStackTrace();
+            } finally {
+                try {
+                    mutex.release();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
             }
-        }
-        return "购买成功！";
+        return "购买时出现问题";
     }
 
     /**

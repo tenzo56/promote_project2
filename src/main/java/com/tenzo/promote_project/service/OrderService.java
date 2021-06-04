@@ -1,6 +1,8 @@
 package com.tenzo.promote_project.service;
 
+import com.tenzo.promote_project.domain.Order;
 import com.tenzo.promote_project.mapper.OrderMapper;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.Date;
@@ -8,14 +10,22 @@ import java.util.Date;
 @Service
 public class OrderService {
 
+    @Autowired
     private OrderMapper orderMapper;
 
+    @Autowired
+    private RedisService redisService;
+
+    private Order order;
     /**
      * 创建订单信息
-     * @param uid 买家id
-     * @param iid 商品id
      */
     public void setOrder(int uid, int iid) {
-        orderMapper.createOrder(uid, iid, new Date());
+        order.setUid(uid);
+        order.setIid(iid);
+        order.setCreateTime(new Date());
+        orderMapper.createOrder(order);
+
+        redisService.set(order.getId()+"", orderMapper.selectById(order.getId()));
     }
 }

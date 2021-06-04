@@ -34,7 +34,6 @@ public class RedisService {
         } catch (Exception e) {
             e.printStackTrace();
         }
-        // OvO
         return result;
     }
 
@@ -75,8 +74,42 @@ public class RedisService {
         return result;
     }
 
+    /**
+     * 增加主键储存的值
+     * @param key
+     * @param value
+     * @return
+     */
+    public boolean incr(final String key, int value) {
+        boolean result = false;
+        try {
+            ValueOperations<Serializable, Object> operations = redisTemplate.opsForValue();
+            operations.increment(key, value);
+            result = true;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return result;
+    }
 
-
+    /**
+     * 检查商品是否卖空
+     * @param key
+     * @return 如果卖空为true
+     */
+    public boolean isSoldOut(final String key) {
+        boolean result = false;
+        try {
+            ValueOperations<Serializable, Object> operations = redisTemplate.opsForValue();
+            if (exists(key)) {
+                int stock = (int) operations.get(key);
+                return stock<1;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
 
     /**
      * 删除对应的value

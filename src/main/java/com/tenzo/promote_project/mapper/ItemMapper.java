@@ -7,7 +7,7 @@ import org.apache.ibatis.annotations.*;
 public interface ItemMapper {
 
     /**
-     *
+     * 创建商品
      * @param item
      * @return
      */
@@ -22,7 +22,7 @@ public interface ItemMapper {
     int insert(Item item);
 
     /**
-     *
+     * 用主键删除商品
      * @param id
      * @return
      */
@@ -32,12 +32,16 @@ public interface ItemMapper {
     })
     int deleteByPk(int id);
 
-    @Select({
-            "select id from item where id=#{id, jdbcType=INTEGER}"
-    })
-    int getId(Item item);
+//    @Select({
+//            "select id from item where id=#{id, jdbcType=INTEGER}"
+//    })
+//    int getId(Item item);
 
-
+    /**
+     * 查找对应商品
+     * @param id 商品id
+     * @return
+     */
     @Select({
             "select id, name, original_price, promote_price, stock, " +
                     "rate from item where id=#{id, jdbcType=INTEGER}"
